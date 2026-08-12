@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServerPulse // VPS & Discord Monitor</title>
+    <!-- Modern Clean Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="light-theme">
+    <div class="app-layout">
+        
+        <!-- Header Bar -->
+        <header class="header-nav">
+            <div class="brand-box">
+                <img src="/logo.jpg" alt="ServerPulse Logo" class="brand-logo-img">
+                <div class="brand-title">
+                    <h1>ServerPulse</h1>
+                    <p id="server-info-sub">Amd VPS • 103.165.11.157 • Uptime: Loading...</p>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div class="bot-pill online" id="bot-status-pill">
+                    <span class="dot"></span>
+                    <span id="bot-status-name">Discord Bot Connected</span>
+                </div>
+                <button class="btn-refresh" id="btn-manual-refresh" title="Refresh Metrics">
+                    🔄 Refresh
+                </button>
+            </div>
+        </header>
+
+        <!-- KPI Cards Grid -->
+        <section class="kpi-grid">
+            
+            <!-- CPU Card -->
+            <div class="kpi-card cpu-theme">
+                <div class="kpi-head">
+                    <span class="kpi-icon">⚡</span>
+                    <h2>CPU Usage</h2>
+                    <span class="kpi-badge cpu-badge" id="cpu-badge">0%</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="kpi-value-row">
+                        <span class="big-value" id="cpu-main-val">0%</span>
+                        <span class="sub-info" id="cpu-cores-str">8 Cores</span>
+                    </div>
+                    <div class="clean-progress-track">
+                        <div class="clean-progress-bar cpu-bar-fill" id="cpu-bar-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="kpi-foot-info" id="cpu-load-str">
+                        Load Average: 0.00 • 0.00 • 0.00
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAM Card -->
+            <div class="kpi-card ram-theme">
+                <div class="kpi-head">
+                    <span class="kpi-icon">🧠</span>
+                    <h2>Memory (RAM)</h2>
+                    <span class="kpi-badge ram-badge" id="ram-badge">0%</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="kpi-value-row">
+                        <span class="big-value" id="ram-used-str">0 GB</span>
+                        <span class="sub-info" id="ram-total-str">/ 0 GB Total</span>
+                    </div>
+                    <div class="clean-progress-track">
+                        <div class="clean-progress-bar ram-bar-fill" id="ram-bar-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="kpi-foot-info" id="ram-free-str">
+                        Free: 0 GB • Available: 0 GB
+                    </div>
+                </div>
+            </div>
+
+            <!-- Storage Card -->
+            <div class="kpi-card disk-theme">
+                <div class="kpi-head">
+                    <span class="kpi-icon">💾</span>
+                    <h2>Storage Disk</h2>
+                    <span class="kpi-badge disk-badge" id="disk-badge">0%</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="kpi-value-row">
+                        <span class="big-value" id="disk-used-str">0 GB</span>
+                        <span class="sub-info" id="disk-total-str">/ 0 GB Total</span>
+                    </div>
+                    <div class="clean-progress-track">
+                        <div class="clean-progress-bar disk-bar-fill" id="disk-bar-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="kpi-foot-info" id="disk-free-str">
+                        Free Storage: 0 GB
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Card -->
+            <div class="kpi-card net-theme">
+                <div class="kpi-head">
+                    <span class="kpi-icon">🌐</span>
+                    <h2>Network Traffic</h2>
+                    <span class="kpi-badge net-badge">Live</span>
+                </div>
+                <div class="kpi-body">
+                    <div class="net-speed-row">
+                        <div class="speed-box down">
+                            <span class="lbl">⬇️ Download</span>
+                            <span class="val" id="net-down-speed">0 B/s</span>
+                        </div>
+                        <div class="speed-box up">
+                            <span class="lbl">⬆️ Upload</span>
+                            <span class="val" id="net-up-speed">0 B/s</span>
+                        </div>
+                    </div>
+                    <div class="kpi-foot-info" id="net-total-str">
+                        Total Recv: 0 B • Total Sent: 0 B
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Charts Grid -->
+        <section class="charts-row">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>📈 CPU & RAM Usage History</h3>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="cleanCpuRamChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>🌐 Real-Time Network Speeds</h3>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="cleanNetChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bottom Grid: Process Table & Bot Control -->
+        <section class="bottom-row">
+            
+            <!-- Process Table Card -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3>🔥 Top Running Server Processes</h3>
+                    <div class="table-actions">
+                        <input type="text" id="proc-search" placeholder="Search processes..." class="search-input">
+                        <button class="filter-btn active" id="btn-sort-cpu">Sort by CPU</button>
+                        <button class="filter-btn" id="btn-sort-mem">Sort by RAM</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="clean-table">
+                        <thead>
+                            <tr>
+                                <th>PID</th>
+                                <th>Process Name</th>
+                                <th>User</th>
+                                <th>CPU Load</th>
+                                <th>Memory %</th>
+                                <th>Memory Size</th>
+                            </tr>
+                        </thead>
+                        <tbody id="proc-rows">
+                            <tr><td colspan="6" class="text-center text-muted">Loading processes...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Discord Bot Control Card -->
+            <div class="control-card">
+                <div class="control-header">
+                    <h3>🤖 Discord Bot Integration</h3>
+                </div>
+                <div class="control-body">
+                    <div class="bot-stat-row">
+                        <span class="lbl">Bot Identity:</span>
+                        <span class="val" id="bot-info-name">tickxaa#4233</span>
+                    </div>
+                    <div class="bot-stat-row">
+                        <span class="lbl">Ping Latency:</span>
+                        <span class="val" id="bot-info-ping">-- ms</span>
+                    </div>
+                    <div class="bot-stat-row">
+                        <span class="lbl">Auto-Monitor Channel:</span>
+                        <span class="val" id="bot-info-monitor">Configured ✅</span>
+                    </div>
+                    <div class="bot-stat-row">
+                        <span class="lbl">Alerts Channel:</span>
+                        <span class="val" id="bot-info-alert">Configured ✅</span>
+                    </div>
+
+                    <div class="alert-trigger-box">
+                        <button class="btn-alert-trigger" id="btn-test-alert">
+                            🚨 Trigger Discord Test Alert
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

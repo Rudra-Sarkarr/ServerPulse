@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  vps-monitor-bot:
+    build: .
+    container_name: vps_monitor_bot
+    restart: always
+    pid: "host"
+    network_mode: "host"
+    env_file:
+      - .env
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro

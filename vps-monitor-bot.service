@@ -1,0 +1,15 @@
+[Unit]
+Description=VPS Real-Time Resource Monitoring Discord Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/vps-monitor-bot
+ExecStart=/opt/vps-monitor-bot/venv/bin/python bot.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
