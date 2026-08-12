@@ -16,12 +16,12 @@ A high-performance Discord Bot built in Python (`discord.py` & `psutil`) that mo
 - 🚨 **Threshold Alert System**: Automated background monitor that alerts your admin channel when CPU, RAM, or Disk cross high-usage limits.
 - 🚀 **VPS Ready**: Includes Linux `systemd` service script and Docker configuration for 24/7 background operation.
 
-## ⚡ 1-Click Interactive Ubuntu VPS Installer
+## ⚡ 1-Click Interactive Ubuntu VPS Installer (Pterodactyl Style)
 
-Run this single command on your Ubuntu VPS. The terminal will interactively ask for your **Discord Bot Token**, **Channel IDs**, and **Port**, then automatically install all dependencies and set up the 24/7 background service!
+Run this single command as **root** on any Ubuntu VPS. The script will interactively ask for your **Discord Bot Token**, **Channel IDs**, and **Port**, then automatically install all dependencies, set up the project, and enable the 24/7 background service!
 
 ```bash
-sudo bash install.sh
+bash <(curl -sSL https://raw.githubusercontent.com/Rudra-Sarkarr/ServerPulse/main/install.sh)
 ```
 
 ---
