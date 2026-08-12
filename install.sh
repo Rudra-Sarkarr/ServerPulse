@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ⚡ SERVERPULSE & DISCORD BOT 1-CLICK REMOTE INSTALLER (Pterodactyl Style)
+# ⚡ SERVERPULSE & DISCORD BOT - PTERODACTYL STYLE 1-CLICK INTERACTIVE INSTALLER
 # ==============================================================================
 # Usage:
-#   bash <(curl -sSL https://raw.githubusercontent.com/your-repo/vps-monitor-bot/main/install.sh)
+#   bash <(curl -sSL https://raw.githubusercontent.com/Rudra-Sarkarr/ServerPulse/main/install.sh)
 # ==============================================================================
 
 set -e
 
-# Color Definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 PURPLE='\033[0;35m'
 BOLD='\033[1m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 clear
 echo -e "${CYAN}${BOLD}"
@@ -31,13 +30,6 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Ensure TTY is available for interactive prompts when piped via curl
-if [ ! -t 0 ] && [ ! -c /dev/tty ]; then
-  echo -e "${RED}❌ Error: No interactive TTY available for input prompts.${NC}"
-  exit 1
-fi
-
-# Function to read input safely from /dev/tty
 prompt_input() {
   local prompt_msg="$1"
   local var_name="$2"
@@ -65,25 +57,41 @@ while [ -z "$BOT_TOKEN" ]; do
   fi
 done
 
-# 2. Ask for Live Status Channel ID
-prompt_input "📌 Enter Live Status Channel ID (Optional, press Enter to skip): " MONITOR_CHAN_ID ""
+# 2. Ask for Discord SERVER (GUILD) ID (Replaces manual Channel ID!)
+GUILD_ID=""
+prompt_input "🏰 Enter your Discord Server (Guild) ID: " GUILD_ID ""
 
-# 3. Ask for Alert Channel ID
-prompt_input "🚨 Enter Alert Channel ID (Optional, press Enter to skip): " ALERT_CHAN_ID ""
+# 3. Choose Access Mode: VPS IP or Custom Domain
+echo -e "\n${CYAN}=====================================================================${NC}"
+echo -e "${BOLD}🌐 SELECT WEB DASHBOARD ACCESS MODE:${NC}"
+echo -e "  [1] Direct VPS IP Mode  (e.g., http://YOUR-VPS-IP:8080)"
+echo -e "  [2] Custom Domain Mode  (e.g., https://status.yourdomain.com with SSL)"
+echo -e "${CYAN}=====================================================================${NC}"
 
-# 4. Ask for Web Dashboard Port
-prompt_input "🌐 Enter Web Dashboard Port [Default: 8080]: " INPUT_PORT "8080"
-WEB_PORT=${INPUT_PORT:-8080}
+prompt_input "Select Option [1 or 2, Default: 1]: " ACCESS_MODE "1"
+
+DOMAIN_NAME=""
+SSL_EMAIL=""
+WEB_PORT="8080"
+
+if [ "$ACCESS_MODE" == "2" ]; then
+  while [ -z "$DOMAIN_NAME" ]; do
+    prompt_input "🌐 Enter your Domain Name (e.g. status.myvps.com): " DOMAIN_NAME ""
+  done
+  prompt_input "📧 Enter Email for free SSL Certificate (Let's Encrypt): " SSL_EMAIL ""
+else
+  prompt_input "🌐 Enter Web Dashboard Port [Default: 8080]: " INPUT_PORT "8080"
+  WEB_PORT=${INPUT_PORT:-8080}
+fi
 
 REFRESH_INTERVAL=2
 
 echo -e "\n${CYAN}---------------------------------------------------------------------${NC}"
 echo -e "${GREEN}✅ Installation Summary:${NC}"
-echo -e " • Bot Token:              ${CYAN}${BOT_TOKEN:0:18}...${NC}"
-echo -e " • Live Status Channel ID: ${CYAN}${MONITOR_CHAN_ID:-None}${NC}"
-echo -e " • Alert Channel ID:       ${CYAN}${ALERT_CHAN_ID:-None}${NC}"
-echo -e " • Web Dashboard Port:     ${CYAN}${WEB_PORT}${NC}"
-echo -e " • Refresh Interval:       ${CYAN}2 seconds (Real-Time)${NC}"
+echo -e " • Bot Token:          ${CYAN}${BOT_TOKEN:0:18}...${NC}"
+echo -e " • Server (Guild) ID:  ${CYAN}${GUILD_ID:-Auto-detect}${NC}"
+echo -e " • Access Mode:        ${CYAN}$([ "$ACCESS_MODE" == "2" ] && echo "Custom Domain ($DOMAIN_NAME)" || echo "VPS IP (Port $WEB_PORT)")${NC}"
+echo -e " • Refresh Interval:   ${CYAN}2 seconds (Real-Time)${NC}"
 echo -e "${CYAN}---------------------------------------------------------------------${NC}\n"
 
 prompt_input "Proceed with installation on this server? (y/n) [Default: y]: " CONFIRM "y"
@@ -93,15 +101,9 @@ if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
 fi
 
 # Step 1: Install Dependencies
-echo -e "\n${YELLOW}📦 [1/5] Installing OS dependencies (Python3, venv, git, curl)...${NC}"
-if command -v apt-get &>/dev/null; then
-  apt-get update -y
-  apt-get install -y python3 python3-pip python3-venv git curl
-elif command -v yum &>/dev/null; then
-  yum install -y python3 python3-pip git curl
-elif command -v dnf &>/dev/null; then
-  dnf install -y python3 python3-pip git curl
-fi
+echo -e "\n${YELLOW}📦 [1/5] Installing system packages (Python3, venv, git, curl, nginx)...${NC}"
+apt-get update -y
+apt-get install -y python3 python3-pip python3-venv git curl nginx certbot python3-certbot-nginx
 
 # Step 2: Prepare Application Directory
 INSTALL_DIR="/opt/vps-monitor-bot"
@@ -109,31 +111,30 @@ echo -e "${YELLOW}📂 [2/5] Setting up project directory at ${INSTALL_DIR}...${
 mkdir -p "$INSTALL_DIR"
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" 2>/dev/null && pwd || echo "" )"
-
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/bot.py" ]; then
   cp -r "$SCRIPT_DIR"/* "$INSTALL_DIR"/ 2>/dev/null || true
 fi
 
 cd "$INSTALL_DIR"
 
-# If files don't exist in /opt/vps-monitor-bot (e.g. executed via curl single liner), clone repo or write core files
 if [ ! -f "$INSTALL_DIR/bot.py" ]; then
   echo -e "${YELLOW}📥 Fetching application source code from repository...${NC}"
   git clone https://github.com/Rudra-Sarkarr/ServerPulse.git "$INSTALL_DIR" 2>/dev/null || true
 fi
 
-# Step 3: Python Environment & Packages
-echo -e "${YELLOW}🐍 [3/5] Installing Python packages...${NC}"
+# Step 3: Python Environment
+echo -e "${YELLOW}🐍 [3/5] Setting up Python virtual environment...${NC}"
 python3 -m venv "$INSTALL_DIR/venv"
 "$INSTALL_DIR/venv/bin/pip" install --upgrade pip --quiet
 "$INSTALL_DIR/venv/bin/pip" install discord.py psutil python-dotenv tabulate --quiet
 
 # Step 4: Write Environment Config
-echo -e "${YELLOW}⚙️ [4/5] Generating .env file...${NC}"
+echo -e "${YELLOW}⚙️ [4/5] Generating .env configuration file...${NC}"
 cat <<EOF > "$INSTALL_DIR/.env"
 DISCORD_TOKEN=${BOT_TOKEN}
-MONITOR_CHANNEL_ID=${MONITOR_CHAN_ID}
-ALERT_CHANNEL_ID=${ALERT_CHAN_ID}
+GUILD_ID=${GUILD_ID}
+MONITOR_CHANNEL_ID=
+ALERT_CHANNEL_ID=
 REFRESH_INTERVAL=${REFRESH_INTERVAL}
 CPU_ALERT_THRESHOLD=85
 RAM_ALERT_THRESHOLD=85
@@ -141,11 +142,39 @@ DISK_ALERT_THRESHOLD=90
 ALERT_COOLDOWN=300
 WEB_HOST=0.0.0.0
 WEB_PORT=${WEB_PORT}
+DOMAIN_NAME=${DOMAIN_NAME}
+USE_DOMAIN=$([ "$ACCESS_MODE" == "2" ] && echo "true" || echo "false")
 EOF
 
 chmod 600 "$INSTALL_DIR/.env"
 
-# Step 5: Setup Systemd 24/7 Service
+# Step 5: Domain Nginx SSL Setup (If Option 2 selected)
+if [ "$ACCESS_MODE" == "2" ] && [ -n "$DOMAIN_NAME" ]; then
+  echo -e "${YELLOW}🔒 Setting up Nginx Reverse Proxy & Let's Encrypt SSL for ${DOMAIN_NAME}...${NC}"
+  cat <<EOF > "/etc/nginx/sites-available/serverpulse"
+server {
+    listen 80;
+    server_name ${DOMAIN_NAME};
+
+    location / {
+        proxy_pass http://127.0.0.1:${WEB_PORT};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOF
+  ln -sf /etc/nginx/sites-available/serverpulse /etc/nginx/sites-enabled/
+  rm -f /etc/nginx/sites-enabled/default
+  nginx -t && systemctl reload nginx
+
+  if [ -n "$SSL_EMAIL" ]; then
+    certbot --nginx -d "$DOMAIN_NAME" --non-interactive --agree-tos -m "$SSL_EMAIL" || echo "SSL setup can be completed later using certbot --nginx -d $DOMAIN_NAME"
+  fi
+fi
+
+# Step 6: Systemd Background Service
 echo -e "${YELLOW}🚀 [5/5] Enabling 24/7 background systemd service...${NC}"
 cat <<EOF > /etc/systemd/system/vps-monitor-bot.service
 [Unit]
@@ -176,7 +205,11 @@ echo " 🎉 INSTALLATION SUCCESSFUL! BOT & DASHBOARD ARE LIVE 24/7"
 echo "====================================================================="
 echo -e "${NC}"
 echo -e "🤖 ${BOLD}Discord Bot:${NC}      Connected & Active"
-echo -e "🌐 ${BOLD}Web Dashboard:${NC}    ${CYAN}http://${VPS_IP}:${WEB_PORT}${NC}"
+if [ "$ACCESS_MODE" == "2" ]; then
+  echo -e "🌐 ${BOLD}Web Dashboard:${NC}    ${CYAN}https://${DOMAIN_NAME}${NC}"
+else
+  echo -e "🌐 ${BOLD}Web Dashboard:${NC}    ${CYAN}http://${VPS_IP}:${WEB_PORT}${NC}"
+fi
 echo -e "📂 ${BOLD}Directory:${NC}        ${INSTALL_DIR}"
 echo -e ""
 echo -e "${YELLOW}Useful Service Commands:${NC}"
